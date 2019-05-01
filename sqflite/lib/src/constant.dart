@@ -33,6 +33,8 @@ const String paramErrorData = "data";
 const String paramRecovered = "recovered";
 // The database path (string)
 const String paramPath = "path";
+// The database encryption password (string)
+const String paramPassword = "dbPassword";
 // The database version (int)
 const String paramVersion = "version";
 // The database id (int)

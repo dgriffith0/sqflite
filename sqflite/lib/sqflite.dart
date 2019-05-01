@@ -21,8 +21,7 @@ export 'sqlite_api.dart';
 class Sqflite {
   //static MethodChannel get _channel => channel;
 
-  static Future<String> get platformVersion =>
-      invokeMethod<String>(methodGetPlatformVersion);
+  static Future<String> get platformVersion => invokeMethod<String>(methodGetPlatformVersion);
 
   /// Turns on debug mode if you want to see the SQL query
   /// executed natively.
@@ -52,15 +51,13 @@ class Sqflite {
 
   // Testing only
   @deprecated
-  static Future<void> devInvokeMethod(String method,
-      [dynamic arguments]) async {
+  static Future<void> devInvokeMethod(String method, [dynamic arguments]) async {
     await invokeMethod<dynamic>(method, arguments);
   }
 
   /// helper to get the first int value in a query
   /// Useful for COUNT(*) queries
-  static int firstIntValue(List<Map<String, dynamic>> list) =>
-      utils.firstIntValue(list);
+  static int firstIntValue(List<Map<String, dynamic>> list) => utils.firstIntValue(list);
 
   /// Utility to encode a blob to allow blow query using
   /// "hex(blob_field) = ?", Sqlite.hex([1,2,3])
@@ -133,7 +130,8 @@ Future<Database> openDatabase(String path,
     OnDatabaseVersionChangeFn onDowngrade,
     OnDatabaseOpenFn onOpen,
     bool readOnly = false,
-    bool singleInstance = true}) {
+    bool singleInstance = true,
+    String dbPassword}) {
   final OpenDatabaseOptions options = OpenDatabaseOptions(
       version: version,
       onConfigure: onConfigure,
@@ -142,15 +140,15 @@ Future<Database> openDatabase(String path,
       onDowngrade: onDowngrade,
       onOpen: onOpen,
       readOnly: readOnly,
-      singleInstance: singleInstance);
+      singleInstance: singleInstance,
+      dbPassword: dbPassword);
   return databaseFactory.openDatabase(path, options: options);
 }
 
 ///
 /// Open the database at a given path in read only mode
 ///
-Future<Database> openReadOnlyDatabase(String path) =>
-    openDatabase(path, readOnly: true);
+Future<Database> openReadOnlyDatabase(String path, {String dbPassword}) => openDatabase(path, readOnly: true, dbPassword: dbPassword);
 
 ///
 /// Get the default databases location.
@@ -164,11 +162,9 @@ Future<String> getDatabasesPath() => databaseFactory.getDatabasesPath();
 ///
 /// Delete the database at the given path.
 ///
-Future<void> deleteDatabase(String path) =>
-    databaseFactory.deleteDatabase(path);
+Future<void> deleteDatabase(String path) => databaseFactory.deleteDatabase(path);
 
 ///
 /// Check if a database exists at a given path.
 ///
-Future<bool> databaseExists(String path) =>
-    databaseFactory.databaseExists(path);
+Future<bool> databaseExists(String path) => databaseFactory.databaseExists(path);

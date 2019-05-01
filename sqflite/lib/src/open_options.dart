@@ -5,16 +5,16 @@ import 'package:sqflite/sqlite_api.dart';
 /// See [openDatabase] for details
 ///
 class SqfliteOpenDatabaseOptions implements OpenDatabaseOptions {
-  SqfliteOpenDatabaseOptions({
-    this.version,
-    this.onConfigure,
-    this.onCreate,
-    this.onUpgrade,
-    this.onDowngrade,
-    this.onOpen,
-    this.readOnly = false,
-    this.singleInstance = true,
-  }) {
+  SqfliteOpenDatabaseOptions(
+      {this.version,
+      this.onConfigure,
+      this.onCreate,
+      this.onUpgrade,
+      this.onDowngrade,
+      this.onOpen,
+      this.readOnly = false,
+      this.singleInstance = true,
+      this.dbPassword = ""}) {
     readOnly ??= false;
     singleInstance ??= true;
   }
@@ -34,6 +34,8 @@ class SqfliteOpenDatabaseOptions implements OpenDatabaseOptions {
   bool readOnly;
   @override
   bool singleInstance;
+  @override
+  String dbPassword;
 
   @override
   String toString() {

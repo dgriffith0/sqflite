@@ -1,25 +1,24 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:path/path.dart';
 import 'package:pedantic/pedantic.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite/src/database_mixin.dart' show SqfliteDatabaseMixin;
-import 'package:sqflite/src/factory_mixin.dart'
-    show SqfliteDatabaseFactoryMixin;
-import 'package:sqflite_example/src/dev_utils.dart';
+import 'package:sqflite/src/factory_mixin.dart' show SqfliteDatabaseFactoryMixin;
 import 'package:synchronized/synchronized.dart';
+
+import 'database/database.dart';
 import 'test_page.dart';
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:path/path.dart';
 
 class OpenCallbacks {
   OpenCallbacks() {
     onConfigure = (Database db) {
       //print("onConfigure");
       //verify(!onConfigureCalled, "onConfigure must be called once");
-      expect(onConfigureCalled, false,
-          reason:
-              "onConfigure already called"); // onConfigure must be called once
+      expect(onConfigureCalled, false, reason: "onConfigure already called"); // onConfigure must be called once
       onConfigureCalled = true;
     };
 
@@ -77,6 +76,7 @@ class OpenCallbacks {
     return await databaseFactory.openDatabase(path,
         options: OpenDatabaseOptions(
             version: version,
+            dbPassword: 'testPassword1',
             onCreate: onCreate,
             onConfigure: onConfigure,
             onDowngrade: onDowngrade,
@@ -108,7 +108,7 @@ class OpenTestPage extends TestPage {
       //await Sqflite.devSetDebugModeOn(false);
       String path = await initDeleteDb("delete_database.db");
       expect(await databaseExists(path), false);
-      Database db = await openDatabase(path);
+      Database db = await openDatabase(path, dbPassword: 'test123');
       await db.close();
       expect((await File(path).exists()), true);
       expect(await databaseExists(path), true);
@@ -122,7 +122,7 @@ class OpenTestPage extends TestPage {
       //await Sqflite.devSetDebugModeOn(true);
       String path = await initDeleteDb("open_no_version.db");
       expect((await File(path).exists()), false);
-      Database db = await openDatabase(path);
+      Database db = await openDatabase(path, dbPassword: 'test123!@#');
       verify(await File(path).exists());
       expect(await db.getVersion(), 0);
       await db.close();
@@ -132,7 +132,7 @@ class OpenTestPage extends TestPage {
       //await Sqflite.devSetDebugModeOn(true);
       String path = await initDeleteDb("is_open.db");
       expect((await File(path).exists()), false);
-      Database db = await openDatabase(path);
+      Database db = await openDatabase(path, dbPassword: 'test123!@#');
       expect(db.isOpen, true);
       verify(await File(path).exists());
       await db.close();
@@ -145,7 +145,7 @@ class OpenTestPage extends TestPage {
       verify(!(await File(path).exists()));
       Database db;
       try {
-        db = await openDatabase(path, onCreate: (Database db, int version) {
+        db = await openDatabase(path, dbPassword: 'test123!@#', onCreate: (Database db, int version) {
           // never called
           verify(false);
         });
@@ -160,8 +160,7 @@ class OpenTestPage extends TestPage {
       String path = await initDeleteDb("open_test2.db");
       bool onCreate = false;
       bool onCreateTransaction = false;
-      Database db = await openDatabase(path, version: 1,
-          onCreate: (Database db, int version) async {
+      Database db = await openDatabase(path, dbPassword: 'test123!@#', version: 1, onCreate: (Database db, int version) async {
         expect(version, 1);
         onCreate = true;
 
@@ -179,17 +178,14 @@ class OpenTestPage extends TestPage {
     test("Simple onCreate", () async {
       // await Sqflite.devSetDebugModeOn(true);
       String path = await initDeleteDb("open_simple_on_create.db");
-      Database db =
-          await openDatabase(path, version: 1, onCreate: (db, version) async {
+      Database db = await openDatabase(path, dbPassword: 'test123!@#', version: 1, onCreate: (db, version) async {
         Batch batch = db.batch();
 
         batch.execute("CREATE TABLE Test (id INTEGER PRIMARY KEY, text NAME)");
         await batch.commit();
       });
       try {
-        expect(
-            await db.rawInsert("INSERT INTO Test (text) VALUES (?)", ['test']),
-            1);
+        expect(await db.rawInsert("INSERT INTO Test (text) VALUES (?)", ['test']), 1);
         var result = await db.query("Test");
         List expected = [
           {'id': 1, 'text': 'test'}
@@ -204,8 +200,8 @@ class OpenTestPage extends TestPage {
       //await Sqflite.devSetDebugModeOn(true);
       String path1 = await initDeleteDb("open_db_1.db");
       String path2 = await initDeleteDb("open_db_2.db");
-      Database db1 = await openDatabase(path1, version: 1);
-      Database db2 = await openDatabase(path2, version: 1);
+      Database db1 = await openDatabase(path1, version: 1, dbPassword: 'test123!@#');
+      Database db2 = await openDatabase(path2, version: 1, dbPassword: 'test123!@#');
       await db1.close();
       await db2.close();
     });
@@ -214,21 +210,18 @@ class OpenTestPage extends TestPage {
       // await Sqflite.devSetDebugModeOn(true);
       bool onUpgrade = false;
       String path = await initDeleteDb("open_on_upgrade.db");
-      Database database = await openDatabase(path, version: 1,
-          onCreate: (Database db, int version) async {
+      Database database = await openDatabase(path, version: 1, dbPassword: 'test123!@#', onCreate: (Database db, int version) async {
         await db.execute("CREATE TABLE Test(id INTEGER PRIMARY KEY)");
       });
       try {
-        await database
-            .insert("Test", <String, dynamic>{'id': 1, 'name': 'test'});
+        await database.insert("Test", <String, dynamic>{'id': 1, 'name': 'test'});
         fail('should fail');
       } on DatabaseException catch (e) {
         print(e);
       }
       expect(await database.getVersion(), 1);
       await database.close();
-      database = await openDatabase(path, version: 2,
-          onUpgrade: (Database db, int oldVersion, int newVersion) async {
+      database = await openDatabase(path, dbPassword: 'test123!@#', version: 2, onUpgrade: (Database db, int oldVersion, int newVersion) async {
         expect(oldVersion, 1);
         expect(newVersion, 2);
         await db.execute("ALTER TABLE Test ADD name TEXT");
@@ -237,10 +230,7 @@ class OpenTestPage extends TestPage {
       verify(onUpgrade);
       expect(await database.getVersion(), 2);
       try {
-        expect(
-            await database
-                .insert("Test", <String, dynamic>{'id': 1, 'name': 'test'}),
-            1);
+        expect(await database.insert("Test", <String, dynamic>{'id': 1, 'name': 'test'}), 1);
       } finally {
         await database.close();
       }
@@ -249,8 +239,7 @@ class OpenTestPage extends TestPage {
     test("Open onDowngrade", () async {
       // await Sqflite.devSetDebugModeOn(true);
       String path = await initDeleteDb("open_on_downgrade.db");
-      Database database = await openDatabase(path, version: 2,
-          onCreate: (Database db, int version) async {
+      Database database = await openDatabase(path, dbPassword: 'test123!@#', version: 2, onCreate: (Database db, int version) async {
         await db.execute("CREATE TABLE Test(id INTEGER PRIMARY KEY)");
       }, onDowngrade: (Database db, int oldVersion, int newVersion) async {
         verify(false, "should not be called");
@@ -259,8 +248,7 @@ class OpenTestPage extends TestPage {
       await database.close();
 
       bool onDowngrade = false;
-      database = await openDatabase(path, version: 1,
-          onDowngrade: (Database db, int oldVersion, int newVersion) async {
+      database = await openDatabase(path, dbPassword: 'test123!@#', version: 1, onDowngrade: (Database db, int oldVersion, int newVersion) async {
         expect(oldVersion, 2);
         expect(newVersion, 1);
         await db.execute("ALTER TABLE Test ADD name TEXT");
@@ -291,12 +279,11 @@ class OpenTestPage extends TestPage {
 
       // Copy from asset
       ByteData data = await rootBundle.load(join("assets", "example.db"));
-      List<int> bytes =
-          data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+      List<int> bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
       await File(path).writeAsBytes(bytes);
 
       // open the database
-      Database db = await openDatabase(path);
+      Database db = await openDatabase(path, dbPassword: 'test123!@#');
 
       // Our database as a single table with a single element
       List<Map<String, dynamic>> list = await db.rawQuery("SELECT * FROM Test");
@@ -320,7 +307,7 @@ class OpenTestPage extends TestPage {
         });
       }
 
-      var db = await openDatabase(path, onConfigure: _onConfigure);
+      var db = await openDatabase(path, dbPassword: 'test123!@#', onConfigure: _onConfigure);
       expect(onConfigured, true);
       expect(onConfiguredTransaction, true);
 
@@ -331,8 +318,7 @@ class OpenTestPage extends TestPage {
       // await Sqflite.devSetDebugModeOn(false);
 
       String path = await initDeleteDb("open_on_downgrade_delete.db");
-      Database database = await openDatabase(path, version: 3,
-          onCreate: (Database db, int version) async {
+      Database database = await openDatabase(path, dbPassword: 'test123!@#', version: 3, onCreate: (Database db, int version) async {
         await db.execute("CREATE TABLE Test(id INTEGER PRIMARY KEY)");
       });
       await database.close();
@@ -343,8 +329,7 @@ class OpenTestPage extends TestPage {
       bool onConfiguredOnce = false; // onConfigure will be called twice here
       // since the database is re-opened
       bool onConfigured = false;
-      database =
-          await openDatabase(path, version: 2, onConfigure: (Database db) {
+      database = await openDatabase(path, dbPassword: 'test123!@#', version: 2, onConfigure: (Database db) {
         // Must not be configured nor created yet
         verify(!onConfigured);
         verify(!onCreated);
@@ -373,8 +358,7 @@ class OpenTestPage extends TestPage {
       onCreated = false;
       onOpened = false;
 
-      database = await openDatabase(path, version: 2,
-          onCreate: (Database db, int version) {
+      database = await openDatabase(path, dbPassword: 'test123!@#', version: 2, onCreate: (Database db, int version) {
         expect(false, "should not be called");
       }, onOpen: (Database db) {
         onOpened = true;
@@ -462,14 +446,8 @@ class OpenTestPage extends TestPage {
         await batch.commit();
       }
 
-      var db = await openDatabase(path,
-          version: 1,
-          onConfigure: _onConfigure,
-          onCreate: _onCreate,
-          onOpen: _onOpen);
-      expect(
-          Sqflite.firstIntValue(await db.rawQuery("SELECT COUNT(*) FROM Test")),
-          2);
+      var db = await openDatabase(path, dbPassword: 'test123!@#', version: 1, onConfigure: _onConfigure, onCreate: _onCreate, onOpen: _onOpen);
+      expect(Sqflite.firstIntValue(await db.rawQuery("SELECT COUNT(*) FROM Test")), 2);
 
       await db.close();
     });
@@ -485,17 +463,13 @@ class OpenTestPage extends TestPage {
         await batch.commit();
       }
 
-      var db = await openDatabase(path, version: 1, onCreate: _onCreate);
-      expect(
-          Sqflite.firstIntValue(await db.rawQuery("SELECT COUNT(*) FROM Test")),
-          1);
+      var db = await openDatabase(path, dbPassword: 'test123!@#', version: 1, onCreate: _onCreate);
+      expect(Sqflite.firstIntValue(await db.rawQuery("SELECT COUNT(*) FROM Test")), 1);
 
       await db.close();
 
-      db = await openReadOnlyDatabase(path);
-      expect(
-          Sqflite.firstIntValue(await db.rawQuery("SELECT COUNT(*) FROM Test")),
-          1);
+      db = await openReadOnlyDatabase(path, dbPassword: 'test123!@#');
+      expect(Sqflite.firstIntValue(await db.rawQuery("SELECT COUNT(*) FROM Test")), 1);
 
       try {
         await db.rawInsert('INSERT INTO Test(value) VALUES("value1")');
@@ -522,15 +496,14 @@ class OpenTestPage extends TestPage {
           await db.execute("PRAGMA foreign_keys = ON");
         }
 
-        var db = await openDatabase(path, onConfigure: _onConfigure);
+        var db = await openDatabase(path, dbPassword: 'test123!@#', onConfigure: _onConfigure);
         await db.close();
       }
 
       {
         Future _onCreate(Database db, int version) async {
           // Database is created, delete the table
-          await db.execute(
-              "CREATE TABLE Test (id INTEGER PRIMARY KEY, value TEXT)");
+          await db.execute("CREATE TABLE Test (id INTEGER PRIMARY KEY, value TEXT)");
         }
 
         Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -539,11 +512,8 @@ class OpenTestPage extends TestPage {
         }
 
         // Special callback used for onDowngrade here to recreate the database
-        var db = await openDatabase(path,
-            version: 1,
-            onCreate: _onCreate,
-            onUpgrade: _onUpgrade,
-            onDowngrade: onDatabaseDowngradeDelete);
+        var db =
+            await openDatabase(path, dbPassword: 'test123!@#', version: 1, onCreate: _onCreate, onUpgrade: _onUpgrade, onDowngrade: onDatabaseDowngradeDelete);
         await db.close();
       }
 
@@ -569,7 +539,7 @@ class OpenTestPage extends TestPage {
         // try opening (will work if it exists)
         Database db;
         try {
-          db = await openDatabase(path, readOnly: true);
+          db = await openDatabase(path, dbPassword: 'test123!@#', readOnly: true);
         } catch (e) {
           print("Error $e");
         }
@@ -580,12 +550,11 @@ class OpenTestPage extends TestPage {
 
           // Copy from asset
           ByteData data = await rootBundle.load(join("assets", "example.db"));
-          List<int> bytes =
-              data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+          List<int> bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
           await File(path).writeAsBytes(bytes);
 
           // open the database
-          db = await openDatabase(path, readOnly: true);
+          db = await openDatabase(path, dbPassword: 'test123!@#', readOnly: true);
         } else {
           print("Opening existing database");
         }
@@ -613,12 +582,9 @@ class OpenTestPage extends TestPage {
       String path = await initDeleteDb("instances_test.db");
       Database db1, db2, db3;
       try {
-        db1 = await databaseFactory.openDatabase(path,
-            options: OpenDatabaseOptions(singleInstance: false));
-        db2 = await databaseFactory.openDatabase(path,
-            options: OpenDatabaseOptions(singleInstance: true));
-        db3 = await databaseFactory.openDatabase(path,
-            options: OpenDatabaseOptions(singleInstance: true));
+        db1 = await databaseFactory.openDatabase(path, options: OpenDatabaseOptions(singleInstance: false, dbPassword: 'anotherTestPassword2'));
+        db2 = await databaseFactory.openDatabase(path, options: OpenDatabaseOptions(singleInstance: true, dbPassword: 'anotherTestPassword2'));
+        db3 = await databaseFactory.openDatabase(path, options: OpenDatabaseOptions(singleInstance: true, dbPassword: 'anotherTestPassword2'));
         expect(db1, isNot(db2));
         expect(db2, db3);
       } finally {
@@ -631,9 +597,9 @@ class OpenTestPage extends TestPage {
     test('single/multi instance', () async {
       // await Sqflite.devSetDebugModeOn(true);
       String path = await initDeleteDb("instances_test.db");
-      var db1 = await openDatabase(path, singleInstance: false);
-      var db2 = await openDatabase(path, singleInstance: true);
-      var db3 = await openDatabase(path, singleInstance: true);
+      var db1 = await openDatabase(path, dbPassword: 'test123!@#', singleInstance: false);
+      var db2 = await openDatabase(path, dbPassword: 'test123!@#', singleInstance: true);
+      var db3 = await openDatabase(path, dbPassword: 'test123!@#', singleInstance: true);
       verify(db1 != db2);
       verify(db2 == db3);
       await db1.close();
@@ -642,13 +608,11 @@ class OpenTestPage extends TestPage {
     });
 
     test('In memory database', () async {
-      String inMemoryPath =
-          inMemoryDatabasePath; // tried null without success, as it crashes on Android
+      String inMemoryPath = inMemoryDatabasePath; // tried null without success, as it crashes on Android
       String path = inMemoryPath;
 
-      var db = await openDatabase(path);
-      await db
-          .execute("CREATE TABLE IF NOT EXISTS Test(id INTEGER PRIMARY KEY)");
+      var db = await openDatabase(path, dbPassword: 'test123!@#');
+      await db.execute("CREATE TABLE IF NOT EXISTS Test(id INTEGER PRIMARY KEY)");
       await db.insert("Test", {"id": 1});
       expect(await db.query("Test"), [
         {"id": 1}
@@ -656,7 +620,7 @@ class OpenTestPage extends TestPage {
       await db.close();
 
       // reopen, content should be gone
-      db = await openDatabase(path);
+      db = await openDatabase(path, dbPassword: 'test123!@#');
       try {
         await db.query("Test");
         fail("fail");
@@ -670,9 +634,8 @@ class OpenTestPage extends TestPage {
       // await Sqflite.devSetDebugModeOn(true);
       String path = await initDeleteDb("not_in_memory.db");
 
-      var db = await openDatabase(path);
-      await db
-          .execute("CREATE TABLE IF NOT EXISTS Test(id INTEGER PRIMARY KEY)");
+      var db = await openDatabase(path, dbPassword: 'test123!@#');
+      await db.execute("CREATE TABLE IF NOT EXISTS Test(id INTEGER PRIMARY KEY)");
       await db.insert("Test", {"id": 1});
       expect(await db.query("Test"), [
         {"id": 1}
@@ -680,7 +643,7 @@ class OpenTestPage extends TestPage {
       await db.close();
 
       // reopen, content should be done
-      db = await openDatabase(path);
+      db = await openDatabase(path, dbPassword: 'test123!@#');
       expect(await db.query("Test"), [
         {"id": 1}
       ]);
@@ -703,8 +666,7 @@ class OpenTestPage extends TestPage {
     test('open in sub sub directory', () async {
       // await Sqflite.devSetDebugModeOn(true);
       var databasesPath = await factory.getDatabasesPath();
-      String path =
-          join(databasesPath, 'sub2_that_should_not_exists', 'sub_sub');
+      String path = join(databasesPath, 'sub2_that_should_not_exists', 'sub_sub');
       try {
         await Directory(path).delete(recursive: true);
       } catch (_) {}
@@ -721,18 +683,15 @@ class OpenTestPage extends TestPage {
       var path = 'open_close_open_no_wait.db';
       var factory = databaseFactory;
       await factory.deleteDatabase(path);
-      var db = await factory.openDatabase(path,
-          options: OpenDatabaseOptions(version: 1));
+      var db = await factory.openDatabase(path, options: OpenDatabaseOptions(version: 1, dbPassword: 'test123!@#'));
       try {
         expect(await db.getVersion(), 1);
         // close no wait
         unawaited(db.close());
-        var db2 = await factory.openDatabase(path,
-            options: OpenDatabaseOptions(version: 1));
+        var db2 = await factory.openDatabase(path, options: OpenDatabaseOptions(version: 1, dbPassword: 'test123!@#'));
         print('$db, $db2');
         verify(db != db2);
-        verify((db as SqfliteDatabaseMixin).id !=
-            (db2 as SqfliteDatabaseMixin).id);
+        verify((db as SqfliteDatabaseMixin).id != (db2 as SqfliteDatabaseMixin).id);
         expect(await db2.getVersion(), 1);
       } finally {
         await db.close();
@@ -743,15 +702,13 @@ class OpenTestPage extends TestPage {
       var path = 'test_close_in_transaction.db';
       var factory = databaseFactory;
       await factory.deleteDatabase(path);
-      var db = await factory.openDatabase(path,
-          options: OpenDatabaseOptions(version: 1));
+      var db = await factory.openDatabase(path, options: OpenDatabaseOptions(version: 1, dbPassword: 'test123!@#'));
       try {
         //await db.getVersion();
         await db.execute("BEGIN IMMEDIATE");
         await db.close();
 
-        db = await factory.openDatabase(path,
-            options: OpenDatabaseOptions(version: 1));
+        db = await factory.openDatabase(path, options: OpenDatabaseOptions(version: 1, dbPassword: 'test123!@#'));
       } finally {
         await db.close();
       }
@@ -762,27 +719,21 @@ class OpenTestPage extends TestPage {
       var path = 'test_close_in_transaction.db';
       var factory = databaseFactory;
       await deleteDatabase(path);
-      var db = await factory.openDatabase(path,
-          options: OpenDatabaseOptions(version: 1));
+      var db = await factory.openDatabase(path, options: OpenDatabaseOptions(version: 1, dbPassword: 'test123!@#'));
       try {
         //await db.getVersion();
         await db.execute("BEGIN IMMEDIATE");
         // Trick to make sure we don't reuse the same instance during open
-        (factory as SqfliteDatabaseFactoryMixin)
-            .databaseOpenHelpers
-            .remove(db.path);
+        (factory as SqfliteDatabaseFactoryMixin).databaseOpenHelpers.remove(db.path);
 
-        var db2 = await factory.openDatabase(path,
-            options: OpenDatabaseOptions(version: 1));
+        var db2 = await factory.openDatabase(path, options: OpenDatabaseOptions(version: 1, dbPassword: 'test123!@#'));
         print('after open');
         verify(db != db2);
-        expect(
-            (db as SqfliteDatabaseMixin).id, (db2 as SqfliteDatabaseMixin).id);
+        expect((db as SqfliteDatabaseMixin).id, (db2 as SqfliteDatabaseMixin).id);
         //await db.getVersion();
         //await db.execute("ROLLBACK");
 
-        db = await factory.openDatabase(path,
-            options: OpenDatabaseOptions(version: 1));
+        db = await factory.openDatabase(path, options: OpenDatabaseOptions(version: 1, dbPassword: 'test123!@#'));
         expect(db, db2);
       } finally {
         await db.close();
@@ -803,7 +754,7 @@ class Helper {
       await _lock.synchronized(() async {
         // Check again once entering the synchronized block
         if (_db == null) {
-          _db = await openDatabase(path);
+          _db = await openDatabase(path, dbPassword: 'test123!@#');
         }
       });
     }

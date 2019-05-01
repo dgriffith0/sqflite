@@ -35,8 +35,7 @@ abstract class DatabaseExecutor {
   Future<int> rawInsert(String sql, [List<dynamic> arguments]);
 
   // INSERT helper
-  Future<int> insert(String table, Map<String, dynamic> values,
-      {String nullColumnHack, ConflictAlgorithm conflictAlgorithm});
+  Future<int> insert(String table, Map<String, dynamic> values, {String nullColumnHack, ConflictAlgorithm conflictAlgorithm});
 
   /// Helper to query a table
   ///
@@ -64,21 +63,12 @@ abstract class DatabaseExecutor {
 
   /// @return the items found
   Future<List<Map<String, dynamic>>> query(String table,
-      {bool distinct,
-      List<String> columns,
-      String where,
-      List<dynamic> whereArgs,
-      String groupBy,
-      String having,
-      String orderBy,
-      int limit,
-      int offset});
+      {bool distinct, List<String> columns, String where, List<dynamic> whereArgs, String groupBy, String having, String orderBy, int limit, int offset});
 
   /// Execute a raw SQL SELECT query
   ///
   /// Returns a list of rows that were found
-  Future<List<Map<String, dynamic>>> rawQuery(String sql,
-      [List<dynamic> arguments]);
+  Future<List<Map<String, dynamic>>> rawQuery(String sql, [List<dynamic> arguments]);
 
   /// Execute a raw SQL UPDATE query
   ///
@@ -98,10 +88,7 @@ abstract class DatabaseExecutor {
   ///
   /// [conflictAlgorithm] (optional) specifies algorithm to use in case of a
   /// conflict. See [ConflictResolver] docs for more details
-  Future<int> update(String table, Map<String, dynamic> values,
-      {String where,
-      List<dynamic> whereArgs,
-      ConflictAlgorithm conflictAlgorithm});
+  Future<int> update(String table, Map<String, dynamic> values, {String where, List<dynamic> whereArgs, ConflictAlgorithm conflictAlgorithm});
 
   /// Executes a raw SQL DELETE query
   ///
@@ -174,30 +161,25 @@ abstract class Database implements DatabaseExecutor {
 
   /// testing only
   @deprecated
-  Future<T> devInvokeSqlMethod<T>(String method, String sql,
-      [List<dynamic> arguments]);
+  Future<T> devInvokeSqlMethod<T>(String method, String sql, [List<dynamic> arguments]);
 }
 
-typedef FutureOr<void> OnDatabaseVersionChangeFn(
-    Database db, int oldVersion, int newVersion);
+typedef FutureOr<void> OnDatabaseVersionChangeFn(Database db, int oldVersion, int newVersion);
 typedef FutureOr<void> OnDatabaseCreateFn(Database db, int version);
 typedef FutureOr<void> OnDatabaseOpenFn(Database db);
 typedef FutureOr<void> OnDatabaseConfigureFn(Database db);
 
 /// to specify during [openDatabase] for [onDowngrade]
 /// Downgrading will always fail
-Future<void> onDatabaseVersionChangeError(
-    Database db, int oldVersion, int newVersion) async {
+Future<void> onDatabaseVersionChangeError(Database db, int oldVersion, int newVersion) async {
   throw ArgumentError("can't change version from $oldVersion to $newVersion");
 }
 
-Future<void> __onDatabaseDowngradeDelete(
-    Database db, int oldVersion, int newVersion) async {
+Future<void> __onDatabaseDowngradeDelete(Database db, int oldVersion, int newVersion) async {
   // Implementation is hidden implemented in openDatabase._onDatabaseDowngradeDelete
 }
 // Downgrading will delete the database and open it again
-final OnDatabaseVersionChangeFn onDatabaseDowngradeDelete =
-    __onDatabaseDowngradeDelete;
+final OnDatabaseVersionChangeFn onDatabaseDowngradeDelete = __onDatabaseDowngradeDelete;
 
 ///
 /// Options for opening the database
@@ -212,7 +194,8 @@ abstract class OpenDatabaseOptions {
       OnDatabaseVersionChangeFn onDowngrade,
       OnDatabaseOpenFn onOpen,
       bool readOnly = false,
-      bool singleInstance = true}) {
+      bool singleInstance = true,
+      String dbPassword}) {
     return impl.SqfliteOpenDatabaseOptions(
         version: version,
         onConfigure: onConfigure,
@@ -221,7 +204,8 @@ abstract class OpenDatabaseOptions {
         onDowngrade: onDowngrade,
         onOpen: onOpen,
         readOnly: readOnly,
-        singleInstance: singleInstance);
+        singleInstance: singleInstance,
+        dbPassword: dbPassword);
   }
 
   int version;
@@ -232,6 +216,7 @@ abstract class OpenDatabaseOptions {
   OnDatabaseOpenFn onOpen;
   bool readOnly;
   bool singleInstance;
+  String dbPassword;
 }
 
 ///
@@ -255,24 +240,19 @@ abstract class Batch {
   /// (we are already in a transaction) or if the batch was created in a
   /// transaction it will only be commited when
   /// the transaction is commited ([exclusive] is not used then)
-  Future<List<dynamic>> commit(
-      {bool exclusive, bool noResult, bool continueOnError});
+  Future<List<dynamic>> commit({bool exclusive, bool noResult, bool continueOnError});
 
   /// See [Database.rawInsert]
   void rawInsert(String sql, [List<dynamic> arguments]);
 
   /// See [Database.insert]
-  void insert(String table, Map<String, dynamic> values,
-      {String nullColumnHack, ConflictAlgorithm conflictAlgorithm});
+  void insert(String table, Map<String, dynamic> values, {String nullColumnHack, ConflictAlgorithm conflictAlgorithm});
 
   /// See [Database.rawUpdate]
   void rawUpdate(String sql, [List<dynamic> arguments]);
 
   /// See [Database.update]
-  void update(String table, Map<String, dynamic> values,
-      {String where,
-      List<dynamic> whereArgs,
-      ConflictAlgorithm conflictAlgorithm});
+  void update(String table, Map<String, dynamic> values, {String where, List<dynamic> whereArgs, ConflictAlgorithm conflictAlgorithm});
 
   /// See [Database.rawDelete]
   void rawDelete(String sql, [List<dynamic> arguments]);
@@ -285,15 +265,7 @@ abstract class Batch {
 
   /// See [Database.query];
   void query(String table,
-      {bool distinct,
-      List<String> columns,
-      String where,
-      List<dynamic> whereArgs,
-      String groupBy,
-      String having,
-      String orderBy,
-      int limit,
-      int offset});
+      {bool distinct, List<String> columns, String where, List<dynamic> whereArgs, String groupBy, String having, String orderBy, int limit, int offset});
 
   /// See [Database.query];
   void rawQuery(String sql, [List<dynamic> arguments]);

@@ -21,6 +21,7 @@ static NSString *const _methodBatch = @"batch";
 // For open
 static NSString *const _paramReadOnly = @"readOnly";
 static NSString *const _paramSingleInstance = @"singleInstance";
+static NSString *const _paramDbPassword = @"dbPassword";
 // Open result
 static NSString *const _paramRecovered = @"recovered";
 
@@ -549,9 +550,10 @@ static NSInteger _databaseOpenCount = 0;
     bool inMemoryPath = [SqflitePlugin isInMemoryPath:path];
     // A single instance must be a regular database
     bool singleInstance = [singleInstanceValue boolValue] != false && !inMemoryPath;
-    
+    NSString* dbPassword = call.arguments[_paramDbPassword];
+
     if (_log) {
-        NSLog(@"opening %@ %@ %@", path, readOnly ? @" read-only" : @"", singleInstance ? @"" : @" new instance");
+        NSLog(@"opening %@ %@ %@ %@", path, readOnly ? @" read-only" : @"", singleInstance ? @"" : @" new instance", dbPassword);
     }
     
     // Handle hot-restart for single instance
@@ -571,6 +573,12 @@ static NSInteger _databaseOpenCount = 0;
     }
     
     FMDatabaseQueue *queue = [FMDatabaseQueue databaseQueueWithPath:path flags:(readOnly ? SQLITE_OPEN_READONLY : (SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE))];
+    if(dbPassword != nil && [dbPassword length]  > 0)  {
+        [queue inDatabase:^(FMDatabase * _Nonnull db) {
+            [db setKey:@"MonkeysFlyOuttaMyButt"];
+        }];
+    }
+    
     bool success = queue != nil;
     
     if (!success) {
